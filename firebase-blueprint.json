@@ -1,0 +1,28 @@
+{
+  "entities": {
+    "Transaction": {
+      "title": "Transaction",
+      "description": "An investment transaction record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The UID of the owner." },
+        "date": { "type": "string", "format": "date-time", "description": "Transaction date and time." },
+        "type": { "type": "string", "enum": ["Buy", "Sell", "Dividend", "Tax", "Fee"], "description": "Type of transaction." },
+        "ticker": { "type": "string", "description": "Stock ticker symbol." },
+        "amount": { "type": "number", "description": "Transaction amount." },
+        "currency": { "type": "string", "enum": ["USD", "THB"], "description": "Currency of the transaction." },
+        "price": { "type": "number", "description": "Price per share." },
+        "shares": { "type": "number", "description": "Number of shares." },
+        "note": { "type": "string", "description": "Optional notes." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "type", "amount", "currency"]
+    }
+  },
+  "firestore": {
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Collection of investment transactions."
+    }
+  }
+}

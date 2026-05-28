@@ -1,0 +1,8 @@
+{
+  "name": "Minimal Investment Tracker",
+  "description": "A modern investment tracker with AI-powered market insights and automated Telegram reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

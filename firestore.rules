@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: transactions
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required) - Owner's UID
+    //   - date: string (required) - ISO date string
+    //   - type: string (required) - Buy, Sell, Dividend, Tax, Fee
+    //   - ticker: string (optional)
+    //   - amount: number (required)
+    //   - currency: string (required) - USD, THB
+    //   - price: number (optional)
+    //   - shares: number (optional)
+    //   - note: string (optional)
+    //   - createdAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidTransaction(data) {
+      return data.userId is string &&
+             data.userId == request.auth.uid &&
+             data.type in ['Buy', 'Sell', 'Dividend', 'Tax', 'Fee'] &&
+             (data.amount is number || data.amount == null) &&
+             data.currency in ['USD', 'THB'] &&
+             data.date is string &&
+             data.createdAt is timestamp &&
+             (!('ticker' in data) || data.ticker is string) &&
+             (!('price' in data) || data.price is number || data.price == null) &&
+             (!('shares' in data) || data.shares is number || data.shares == null) &&
+             (!('note' in data) || data.note is string) &&
+             data.keys().hasOnly(['userId', 'date', 'type', 'ticker', 'amount', 'currency', 'price', 'shares', 'note', 'createdAt']);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId) && isValidTransaction(request.resource.data) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+    
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+  }
+}
