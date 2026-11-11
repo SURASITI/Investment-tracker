@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   collection, 
-  onSnapshot, 
+  getDocs, 
   query, 
   where, 
   orderBy, 
@@ -241,20 +241,21 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time Data Listener
-  useEffect(() => {
+  // Fetch Transactions Data (On Initial Load & After Mutations)
+  const fetchTransactions = useCallback(async () => {
     if (!user) {
       setTransactions([]);
       return;
     }
 
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', user.uid)
-    );
+    try {
+      const q = query(
+        collection(db, 'transactions'),
+        where('userId', '==', user.uid)
+      );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log(`Received snapshot with ${snapshot.docs.length} documents`);
+      const snapshot = await getDocs(q);
+      console.log(`Fetched ${snapshot.docs.length} documents`);
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -268,12 +269,15 @@ export default function App() {
       });
       
       setTransactions(data);
-    }, (error) => {
+    } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'transactions');
-    });
-
-    return () => unsubscribe();
+    }
   }, [user]);
+
+  // Initial Data Fetch on App Open or User Change
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   // Portfolio Logic
   const portfolio = useMemo(() => {
@@ -452,6 +456,7 @@ export default function App() {
       
       setImportStatus({ type: 'success', message: `Successfully imported ${newItems.length} new items!` });
       setTimeout(() => setImportStatus({ type: null, message: '' }), 5000);
+      await fetchTransactions();
     } catch (error) {
       console.error('Import failed', error);
       setImportStatus({ type: 'error', message: `Import failed: ${error instanceof Error ? error.message : String(error)}` });
@@ -509,6 +514,7 @@ export default function App() {
       }
       setImportStatus({ type: 'success', message: 'Database cleared successfully!' });
       setTimeout(() => setImportStatus({ type: null, message: '' }), 5000);
+      await fetchTransactions();
     } catch (error) {
       console.error('Clear failed', error);
       setImportStatus({ type: 'error', message: `Clear failed: ${error instanceof Error ? error.message : String(error)}` });
@@ -542,6 +548,7 @@ export default function App() {
       await batch.commit();
       setImportStatus({ type: 'success', message: `Successfully imported ${count} items!` });
       setIsImportModalOpen(false);
+      await fetchTransactions();
     } catch (error) {
       setImportStatus({ type: 'error', message: `Import failed: ${error instanceof Error ? error.message : String(error)}` });
     } finally {
@@ -575,6 +582,7 @@ export default function App() {
       }
       setIsModalOpen(false);
       setEditingTransaction(null);
+      await fetchTransactions();
     } catch (error) {
       handleFirestoreError(error, editingTransaction ? OperationType.UPDATE : OperationType.CREATE, 'transactions');
     }
@@ -584,6 +592,7 @@ export default function App() {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
     try {
       await deleteDoc(doc(db, 'transactions', id));
+      await fetchTransactions();
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `transactions/${id}`);
     }
